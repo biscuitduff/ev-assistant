@@ -426,9 +426,7 @@ async def execute_action(action: dict) -> str:
         return f"Opened: {p}"
 
     elif t == "SCREEN":
-        if ai is not None:
-            return await screen_capture.describe_screen(ai, LANGUAGE)
-        return S("no_screen")
+        # Handled by deliver_action(), which requests a screen# frame from the connected browser.return ""
 
     elif t == "NEWS":
         result = await browser_tools.fetch_news()
@@ -689,16 +687,21 @@ async def process_message(session_id: str, user_text: str, ws: WebSocket):
 
 
 async def deliver_action(session_id: str, action: dict, ws: WebSocket):
-    """Run a (already-approved / non-destructive) action and speak the result."""
-    # Quick voice feedback for SCREEN so the user knows E.V. is working.
-    if action["type"] == "SCREEN":
+    """Run a non-destructive action and speak the result."""if action["type"] == "SCREEN":
         hint = S("screen_hint")
         hint_audio = await synthesize_speech(hint)
+
         await ws.send_json({
             "type": "response",
             "text": hint,
-            "audio": base64.b64encode(hint_audio).decode("utf-8") if hint_audio else "",
+            "audio": base64.b64encode(hint_audio).decode("utf-8")
+                     if hint_audio else "",
         })
+
+        # Ask the browser for the user's shared screen.await ws.send_json({
+            "type": "screen_request"        })
+
+        return
 
     try:
         action_result = await execute_action(action)
