@@ -1,52 +1,45 @@
 """
-E.V. — Screen Capture
-Takes screenshots and describes them via Claude Vision.
-"""
+E.V. local screen vision through Ollama.
+The browser captures the user's chosen screen/window/tab and sends the image.
+"""import base64 import httpxasync def describe_image(
+    image_bytes: bytes,
+    ollama_url: str,
+    model: str,
+    lang: str = "en",
+) -> str:
 
-import base64
-import io
-from PIL import ImageGrab
+    if not image_bytes:
+        return "No screen image was received."encoded = base64.b64encode(image_bytes).decode("utf-8")
 
+    if lang == "tr":
+        prompt = (
+            "Bu ekran görüntüsünü dikkatlice incele. ""Ekranda görünen en önemli programları, metinleri ve içeriği ""kısaca açıkla. En fazla 2-3 cümle kullan."        )
+    else:
+        prompt = (
+            "Carefully inspect this screenshot. ""Briefly describe the most important programs, text, UI and ""content visible on the screen. Use at most 2-3 sentences."        )
 
-def capture_screen() -> bytes:
-    """Capture the entire screen, return PNG bytes."""
-    img = ImageGrab.grab()
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt,
+                "images": [encoded],
+            }
+        ],
+        "stream": False,
+        "keep_alive": "10m",
+        "options": {
+            "temperature": 0.2,
+            "num_predict": 300,
+        },
+    }
 
+    async with httpx.AsyncClient(timeout=180) as client:
+        response = await client.post(
+            f"{ollama_url.rstrip('/')}/api/chat",
+            json=payload,
+        )
+        response.raise_for_status()
 
-async def describe_screen(anthropic_client, lang: str = "en") -> str:
-    """Capture screen and describe it using Claude Vision."""
-    png_bytes = capture_screen()
-    b64 = base64.b64encode(png_bytes).decode("utf-8")
-    prompt = (
-        "Bu ekranda görünenleri Türkçe olarak kısaca anlat. En fazla 2-3 cümle. "
-        "Açık olan en önemli programları ve içerikleri belirt."
-        if lang == "tr" else
-        "Briefly describe what's on this screen in English. At most 2-3 sentences. "
-        "Mention the most important open programs and content."
-    )
-
-    response = await anthropic_client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=300,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": b64,
-                    },
-                },
-                {
-                    "type": "text",
-                    "text": prompt,
-                },
-            ],
-        }],
-    )
-    return response.content[0].text
+    return response.json()["message"]["content"].strip()
