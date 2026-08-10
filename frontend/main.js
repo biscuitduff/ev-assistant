@@ -229,7 +229,15 @@ function connect() {
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         markActivity();
-        if (data.type === 'response') {
+        if (data.type === 'screen_request') {
+    setOrbState('thinking');
+    setAwaiting(true);
+
+    sendVisionFrame().catch(err => {
+        console.error('[E.V.] Vision frame error:', err);
+    });
+
+} else if (data.type === 'response') {
             addTranscript('ev', data.text);
             setAwaiting(false);
             if (data.audio && data.audio.length > 0) {
