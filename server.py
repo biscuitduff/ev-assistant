@@ -688,60 +688,107 @@ async def process_message(session_id: str, user_text: str, ws: WebSocket):
 
 
 async def deliver_action(session_id: str, action: dict, ws: WebSocket):
-    """Run a non-destructive action and speak the result."""if action["type"] == "SCREEN":
+    """Run a non-destructive action and speak the result."""
+
+    # Screen vision is handled by the connected browser.
+    # Ask the browser for one frame of the screen/window the user shared.
+    if action["type"] == "SCREEN":
         hint = S("screen_hint")
         hint_audio = await synthesize_speech(hint)
 
         await ws.send_json({
             "type": "response",
             "text": hint,
-            "audio": base64.b64encode(hint_audio).decode("utf-8")
-                     if hint_audio else "",
+            "audio": (
+                base64.b64encode(hint_audio).decode("utf-8")
+                if hint_audio
+                else ""
+            ),
         })
 
-        # Ask the browser for the user's shared screen.await ws.send_json({
-            "type": "screen_request"        })
+        await ws.send_json({
+            "type": "screen_request"
+        })
 
         return
 
     try:
         action_result = await execute_action(action)
-        print(f"  Result: {str(action_result)[:200]}", flush=True)
+        print(
+            f"  Result: {str(action_result)[:200]}",
+            flush=True,
+        )
+
     except Exception as e:
-        print(f"  Action error: {e}", flush=True)
+        print(
+            f"  Action error: {e}",
+            flush=True,
+        )
+
         action_result = f"__SPOKEN__{S('action_problem')}"
 
     if action["type"] == "OPEN":
-        return  # just opened a browser tab, nothing to summarize
+        return
 
     if not action_result:
-        return  # silent action (e.g. duplicate memory)
+        return
 
-    # __SPOKEN__ prefix → speak the line verbatim, don't summarize (PC/memory acks).
-    if isinstance(action_result, str) and action_result.startswith("__SPOKEN__"):
+    # __SPOKEN__ means speak the result directly instead of
+    # asking the LLM to summarize it.
+    if (
+        isinstance(action_result, str)
+        and action_result.startswith("__SPOKEN__")
+    ):
         summary = action_result[len("__SPOKEN__"):].strip()
+
     elif not action_result.startswith("__FAILED__"):
+
         if LANGUAGE == "en":
-            sys_sum = (f"You are E.V. Summarize the info below briefly in English, at most 3 "
-                       f"sentences, calm and plain E.V. style. Address the user by name as "
-                       f"'{USER_ADDRESS}'. NO brackets/tags. NO ACTION tag.")
+            sys_sum = (
+                f"You are E.V. Summarize the info below briefly in English, "
+                f"at most 3 sentences, calm and plain E.V. style. "
+                f"Address the user by name as '{USER_ADDRESS}'. "
+                f"NO brackets/tags. NO ACTION tag."
+            )
+
             user_sum = f"Summarize this:\n\n{action_result}"
+
         else:
-            sys_sum = (f"Sen E.V.'sin. Aşağıdaki bilgileri KISA şekilde Türkçe özetle, en fazla 3 "
-                       f"cümle, sakin ve sade E.V. tarzında. Kullanıcıya '{USER_ADDRESS}' diye "
-                       f"ismiyle hitap et. Köşeli parantez içinde etiket YOK. ACTION etiketi YOK.")
+            sys_sum = (
+                f"Sen E.V.'sin. Aşağıdaki bilgileri KISA şekilde Türkçe özetle, "
+                f"en fazla 3 cümle, sakin ve sade E.V. tarzında. "
+                f"Kullanıcıya '{USER_ADDRESS}' diye ismiyle hitap et. "
+                f"Köşeli parantez içinde etiket YOK. ACTION etiketi YOK."
+            )
+
             user_sum = f"Şunu özetle:\n\n{action_result}"
-        summary = await llm_chat(sys_sum, [{"role": "user", "content": user_sum}], max_tokens=250)
+
+        summary = await llm_chat(
+            sys_sum,
+            [{"role": "user", "content": user_sum}],
+            max_tokens=250,
+        )
+
         summary, _ = extract_action(summary)
+
     else:
         summary = S("action_failed")
 
     audio2 = await synthesize_speech(summary)
-    conversations[session_id].append({"role": "assistant", "content": summary})
+
+    conversations[session_id].append({
+        "role": "assistant",
+        "content": summary,
+    })
+
     await ws.send_json({
         "type": "response",
         "text": summary,
-        "audio": base64.b64encode(audio2).decode("utf-8") if audio2 else "",
+        "audio": (
+            base64.b64encode(audio2).decode("utf-8")
+            if audio2
+            else ""
+        ),
     })
 
 
