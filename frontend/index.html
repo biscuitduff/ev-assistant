@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
     <title>E.V.</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -12,9 +13,9 @@
         <div id="titlebar">
             <span id="title">E.V.</span>
             <span id="winbtns">
-                <button id="btn-expand" title="Expand">⤢</button>
-                <button id="btn-hide" title="Hide">–</button>
-                <button id="btn-quit" title="Quit">×</button>
+                <button id="btn-expand" type="button" title="Expand">&#10530;</button>
+                <button id="btn-hide" type="button" title="Hide">&ndash;</button>
+                <button id="btn-quit" type="button" title="Quit">&times;</button>
             </span>
         </div>
 
@@ -23,53 +24,70 @@
             <div class="core">
                 <span class="live-dot"></span>
                 <span class="core-name">E.V. CORE</span>
-                <span id="core-state">ONLINE</span>
-                <span class="core-ver">v1.0</span>
+                <span id="core-state">CONNECTING</span>
+                <span class="core-ver">LOCAL AI</span>
             </div>
             <div class="clock">
-                <span id="clock-time">--:--:--</span>
-                <span id="clock-date">—</span>
+                <span id="clock-time">--:--</span>
+                <span id="clock-date">&mdash;</span>
             </div>
             <div class="topweather">
-                <span id="w-temp">—</span>
-                <span id="w-desc">—</span>
-                <span id="w-city">—</span>
-                <button id="btn-compact" title="Minimize">⤡</button>
+                <span id="w-temp">&mdash;</span>
+                <span id="w-desc">&mdash;</span>
+                <span id="w-city">&mdash;</span>
+                <button id="btn-compact" type="button" title="Minimize">&#10529;</button>
             </div>
         </header>
 
         <!-- Left: system + modules -->
         <aside id="panel-system" class="panel dash-only">
             <h3 data-i18n="sys">// SYSTEM</h3>
-            <div class="stat"><label>CPU</label><div class="bar"><i id="bar-cpu"></i></div><span class="pct" id="val-cpu">—</span></div>
-            <div class="stat"><label>RAM</label><div class="bar"><i id="bar-ram"></i></div><span class="pct" id="val-ram">—</span></div>
-            <div class="stat"><label>DISK</label><div class="bar"><i id="bar-disk"></i></div><span class="pct" id="val-disk">—</span></div>
-            <div class="substats">
-                <div><b id="s-ram">—</b><label data-i18n="mem">MEMORY</label></div>
-                <div><b id="s-disk">—</b><label id="lbl-disk">FREE (—)</label></div>
-                <div><b id="s-wind">—</b><label data-i18n="wind">WIND</label></div>
+
+            <div class="stat">
+                <label>CPU</label>
+                <div class="bar"><i id="bar-cpu"></i></div>
+                <span class="pct" id="val-cpu">&mdash;</span>
             </div>
+            <div class="stat">
+                <label>RAM</label>
+                <div class="bar"><i id="bar-ram"></i></div>
+                <span class="pct" id="val-ram">&mdash;</span>
+            </div>
+            <div class="stat">
+                <label>DISK</label>
+                <div class="bar"><i id="bar-disk"></i></div>
+                <span class="pct" id="val-disk">&mdash;</span>
+            </div>
+
+            <div class="substats">
+                <div><b id="s-ram">&mdash;</b><label data-i18n="mem">MEMORY</label></div>
+                <div><b id="s-disk">&mdash;</b><label id="lbl-disk">FREE (&mdash;)</label></div>
+                <div><b id="s-wind">&mdash;</b><label data-i18n="wind">WIND</label></div>
+            </div>
+
             <h3 class="mt" data-i18n="modules">// MODULES</h3>
             <ul id="modules">
-                <li><span class="ok">●</span> <span class="ml">STT</span><span class="mv" id="m-stt">—</span></li>
-                <li><span class="ok">●</span> <span class="ml" data-i18n="core">CORE</span><span class="mv" id="m-brain">—</span></li>
-                <li><span class="ok">●</span> <span class="ml" data-i18n="voice">VOICE</span><span class="mv" id="m-voice">—</span></li>
-                <li><span class="ok">●</span> <span class="ml">GPU</span><span class="mv" id="m-gpu">—</span></li>
+                <li><span class="ok">&#9679;</span> <span class="ml">STT</span><span class="mv" id="m-stt">&mdash;</span></li>
+                <li><span class="ok">&#9679;</span> <span class="ml" data-i18n="core">CORE</span><span class="mv" id="m-brain">&mdash;</span></li>
+                <li><span class="ok">&#9679;</span> <span class="ml">VISION</span><span class="mv" id="m-vision">&mdash;</span></li>
+                <li><span class="ok">&#9679;</span> <span class="ml" data-i18n="voice">VOICE</span><span class="mv" id="m-voice">&mdash;</span></li>
+                <li><span class="ok">&#9679;</span> <span class="ml">GPU</span><span class="mv" id="m-gpu">&mdash;</span></li>
             </ul>
+
             <h3 class="mt" data-i18n="workshop">// WORKSHOP</h3>
             <div id="workshop"></div>
         </aside>
 
         <!-- Center: audio core visualizer -->
         <section id="viz-stage">
-            <canvas id="viz"></canvas>
-            <div id="status" data-i18n="start">Press Ctrl+Space to start</div>
+            <canvas id="viz" aria-label="E.V. voice visualizer"></canvas>
+            <div id="status" data-i18n="start">Connecting to E.V.&hellip;</div>
         </section>
 
         <!-- Right: event / conversation log -->
         <section id="panel-log" class="panel">
             <h3 class="dash-only" data-i18n="log">// EVENT LOG</h3>
-            <div id="transcript"></div>
+            <div id="transcript" aria-live="polite"></div>
         </section>
 
         <!-- Bottom: code strip + terminal input -->
@@ -77,14 +95,22 @@
             <div id="codestrip"><span id="code-line"></span></div>
             <div id="terminal-input">
                 <span class="prompt">&gt;</span>
-                <input id="text-input" type="text" placeholder="Message E.V.…" data-i18n-ph="ph" autocomplete="off" spellcheck="false" />
-                <button id="mic-btn" title="Listen (Ctrl+Space)">MIC</button> 
-                <button id="vision-btn" title="Share screen with E.V.">VISION</button> 
-                <button id="stop-btn" title="Stop (Esc)">STOP</button>
-                <button id="send-btn" data-i18n="send" title="Send">SEND</button>
+                <input
+                    id="text-input"
+                    type="text"
+                    placeholder="Message E.V.&hellip;"
+                    data-i18n-ph="ph"
+                    autocomplete="off"
+                    spellcheck="false"
+                >
+                <button id="mic-btn" type="button" title="Listen (Ctrl+Space)">MIC</button>
+                <button id="vision-btn" type="button" title="Share a screen/window with E.V.">VISION</button>
+                <button id="stop-btn" type="button" title="Stop playback (Esc)">STOP</button>
+                <button id="send-btn" type="button" data-i18n="send" title="Send">SEND</button>
             </div>
         </footer>
     </div>
+
     <script src="/static/main.js"></script>
 </body>
 </html>
