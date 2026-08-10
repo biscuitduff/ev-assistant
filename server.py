@@ -47,7 +47,7 @@ USER_ADDRESS = config.get("user_address", "dostum")
 CITY = config.get("city", "London")
 LANGUAGE = config.get("language", "tr").lower()
 TASKS_FILE = config.get("obsidian_inbox_path", "")
-PC_CONTROL = bool(config.get("pc_control", True))
+PC_CONTROL = bool(config.get("pc_control", False))
 CONVERSATION_MODE = bool(config.get("conversation_mode", True))
 HISTORY_TURNS = int(config.get("history_turns", 30))  # how many recent messages to keep in context
 NUM_CTX = int(config.get("num_ctx", 4096))            # Ollama context window; falls back if VRAM is tight
@@ -525,10 +525,11 @@ async def _fullscreen_watch():
         await asyncio.sleep(1.5)
 
 
-@app.on_event("startup")
-async def _on_startup():
+@app.on_event("startup")async def _on_startup():
     asyncio.create_task(_warm_ollama())
-    asyncio.create_task(_fullscreen_watch())
+
+    if PC_CONTROL:
+        asyncio.create_task(_fullscreen_watch())
 
 
 async def speak_chunk(text: str, ws: WebSocket):
@@ -757,6 +758,53 @@ async def websocket_endpoint(ws: WebSocket):
             # Any failure while handling ONE message must not drop the connection.
             try:
                 # Confirmation reply for a pending destructive action.
+                                # Browser-side screen capture.if data.get("screen_error"):
+                    if LANGUAGE == "tr":
+                        msg = (
+                            "Ekran paylaşımı açık değil. ""Önce VISION düğmesine basıp bir ekran veya pencere seç."                        )
+                    else:
+                        msg = (
+                            "Screen sharing isn't enabled. ""Click VISION first and choose a screen or window."                        )
+
+                    await _speak_response(session_id, msg, ws)
+                    continueif data.get("screen_image"):
+                    try:
+                        image_bytes = base64.b64decode(
+                            data["screen_image"],
+                            validate=True,
+                        )
+
+                        if len(image_bytes) > 8 * 1024 * 1024:
+                            raise ValueError("Screen image too large")
+
+                        description = await screen_capture.describe_image(
+                            image_bytes,
+                            OLLAMA_URL,
+                            VISION_MODEL,
+                            LANGUAGE,
+                        )
+
+                        await _speak_response(
+                            session_id,
+                            description,
+                            ws,
+                        )
+
+                    except Exception as e:
+                        print(
+                            f"  Vision error: {e}",
+                            flush=True,
+                        )
+
+                        if LANGUAGE == "tr":
+                            msg = "Ekranı incelerken bir sorun çıktı."else:
+                            msg = "Something went wrong while examining the screen."await _speak_response(
+                            session_id,
+                            msg,
+                            ws,
+                        )
+
+                    continue
                 if "confirm" in data:
                     pending = pending_actions.pop(session_id, None)
                     if data.get("confirm") and pending:
@@ -899,4 +947,4 @@ if __name__ == "__main__":
     print("=" * 50, flush=True)
     # Bind to loopback only → the assistant is reachable from THIS machine alone,
     # never from other devices on the network. (Electron/browser use localhost.)
-    uvicorn.run(app, host="127.0.0.1", port=8340)
+    uvicorn.run(app, host="0.0.0.0", port=8340)
