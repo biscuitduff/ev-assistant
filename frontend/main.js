@@ -213,7 +213,7 @@ function onRecordingStopped() {
 }
 
 function connect() {
-    ws = new WebSocket(`ws://${location.host}/ws`);
+    const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';ws = new WebSocket(`${wsProtocol}://${location.host}/ws`);
     ws.onopen = () => {
         console.log('[E.V.] WebSocket connected');
         // Reset any stale audio/playback state on (re)connect.
