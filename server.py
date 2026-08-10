@@ -21,9 +21,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 # Load config
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
-with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-    config = json.load(f)
+CONFIG_PATH = os.environ.get(
+    "EV_CONFIG_PATH",
+    os.path.join(os.path.dirname(__file__), "config.json")
+)
+_CONFIG_JSON = os.environ.get("EV_CONFIG_JSON", "").strip()
+if _CONFIG_JSON:
+    config = json.loads(_CONFIG_JSON)else:
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        config = json.load(f)
 
 LLM_PROVIDER = config.get("llm_provider", "anthropic").lower()
 OLLAMA_URL = config.get("ollama_url", "http://localhost:11434").rstrip("/")
@@ -45,9 +51,24 @@ PC_CONTROL = bool(config.get("pc_control", True))
 CONVERSATION_MODE = bool(config.get("conversation_mode", True))
 HISTORY_TURNS = int(config.get("history_turns", 30))  # how many recent messages to keep in context
 NUM_CTX = int(config.get("num_ctx", 4096))            # Ollama context window; falls back if VRAM is tight
+KOKORO_URL = config.get(
+    "kokoro_url",
+    "http://kokoro:8880").rstrip("/")
+KOKORO_VOICE = config.get(
+    "kokoro_voice",
+    "af_heart")
+KOKORO_SPEED = float(
+    config.get("kokoro_speed", 1.0)
+)
+VISION_MODEL = config.get(
+    "vision_model",
+    OLLAMA_MODEL)
 
 # --- Long-term memory: short facts E.V. remembers about the user ------------
-MEMORY_PATH = os.path.join(os.path.dirname(__file__), "memory.json")
+MEMORY_PATH = config.get(
+    "memory_path",
+    os.path.join(os.path.dirname(__file__), "memory.json")
+)
 
 
 def load_memories() -> list:
@@ -324,6 +345,25 @@ async def synthesize_speech(text: str) -> bytes:
 
     # Say the name "E.V." naturally: "İvi" (ee-vee) in Turkish, "Evie" in English.
     text = re.sub(r"E\.V\.?", "İvi" if LANGUAGE != "en" else "Evie", text)
+
+    if TTS_PROVIDER == "kokoro":
+        try:
+            resp = await http.post(
+                f"{KOKORO_URL}/v1/audio/speech",
+                json={
+                    "model": "kokoro",
+                    "input": text,
+                    "voice": KOKORO_VOICE,
+                    "response_format": "mp3",
+                    "speed": KOKORO_SPEED,
+                },
+                timeout=180,
+            )
+            resp.raise_for_status()
+            return resp.content
+        except Exception as e:
+            print(f"  Kokoro TTS error: {e}", flush=True)
+            return b""
 
     # Split long text into chunks at sentence boundaries to avoid ElevenLabs cutoff
     chunks = []
