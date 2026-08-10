@@ -242,7 +242,9 @@ function connect() {
             setAwaiting(false);
             if (data.audio && data.audio.length > 0) {
                 queueAudio(data.audio);
-            } else if (data.text && data.text.trim()) {
+            } else if (
+                serverVoice === 'browser' &&data.text &&data.text.trim()
+            ) {
                 speakBrowser(data.text);
             } else {
                 resumeListening();
@@ -266,7 +268,9 @@ function connect() {
             setAwaiting(false);
             addConfirm(data.text);
             if (data.audio && data.audio.length > 0) queueAudio(data.audio);
-            else if (data.text) speakBrowser(data.text);
+            else if (serverVoice === 'browser' && data.text) {
+                speakBrowser(data.text);
+            }
             else resumeListening();
         } else if (data.type === 'sleep') {
             // Farewell: stop listening and stay muted (don't auto-resume).
@@ -449,8 +453,10 @@ async function pollStats() {
         const dl = document.getElementById('lbl-disk');
         if (dl) dl.textContent = (appLang === 'en' ? 'FREE (' : 'BOŞ (') + (s.disk_drive || '—') + ')';
         if (s.modules) {
+            serverVoice = s.modules.voice || 'browser';
             setText('m-stt', s.modules.stt); setText('m-brain', s.modules.brain);
             setText('m-voice', s.modules.voice); setText('m-gpu', s.modules.gpu);
+            
         }
         if (s.weather) {
             setText('w-temp', s.weather.temp + '°');
@@ -586,8 +592,7 @@ async function sendVisionFrame() {
 function wire(id, fn) { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); }
 wire('btn-expand', () => setMode('dashboard'));
 wire('btn-compact', () => setMode('compact'));
-wire('mic-btn', () => toggleListen());
-wire('stop-btn', stopEverything);
+wire('mic-btn', () => toggleListen());wire('vision-btn', enableVision);wire('stop-btn', stopEverything);
 wire('send-btn', sendText);
 const ti = document.getElementById('text-input');
 if (ti) ti.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendText(); });
