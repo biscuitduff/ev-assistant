@@ -13,7 +13,10 @@ let listeningEnabled = false;  // muted by default; Ctrl+Space / orb click toggl
 let audioUnlocked = false;
 let watchdog = null;
 let currentEvDiv = null;  // streamed E.V. line being appended to
-let currentAudio = null;  // the HTMLAudio currently playing (so we can stop it)
+let currentAudio = null;
+let visionStream = null;
+let visionVideo = null;
+let serverVoice = 'browser';  // the HTMLAudio currently playing (so we can stop it)
 // Language: /stats sets it from config; ?lang=en|tr overrides (handy for previews).
 const _langOverride = new URLSearchParams(location.search).get('lang');
 let appLang = _langOverride === 'en' ? 'en' : 'tr';  // set from /stats; drives TTS + UI
@@ -467,6 +470,108 @@ function sendText() {
     status.textContent = T('thinking');
     setAwaiting(true);
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ text: txt }));
+}
+
+async function enableVision() {
+    const btn = document.getElementById('vision-btn');
+
+    // Clicking again turns screen sharing off.if (visionStream) {
+        visionStream.getTracks().forEach(track => track.stop());
+        visionStream = null;
+
+        if (visionVideo) {
+            visionVideo.srcObject = null;
+            visionVideo = null;
+        }
+
+        if (btn) btn.textContent = 'VISION';
+        logSys(appLang === 'en'? 'Screen vision disabled.': 'Ekran görüşü kapatıldı.');
+
+        return;
+    }
+
+    try {
+        visionStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: false,
+        });
+
+        visionVideo = document.createElement('video');
+        visionVideo.srcObject = visionStream;
+        visionVideo.muted = true;
+        visionVideo.playsInline = true;
+
+        await visionVideo.play();
+
+        const track = visionStream.getVideoTracks()[0];
+
+        track.addEventListener('ended', () => {
+            visionStream = null;
+
+            if (visionVideo) {
+                visionVideo.srcObject = null;
+                visionVideo = null;
+            }
+
+            if (btn) btn.textContent = 'VISION';
+        });
+
+        if (btn) btn.textContent = 'VISION ON';
+
+        logSys(appLang === 'en'? 'Screen vision enabled.': 'Ekran görüşü açıldı.');
+
+    } catch (e) {
+        console.error('[E.V.] Screen share error:', e);
+
+        if (btn) btn.textContent = 'VISION';
+    }
+}
+
+async function sendVisionFrame() {
+    if (
+        !visionStream ||!visionVideo ||!visionStream.getVideoTracks().length ||visionStream.getVideoTracks()[0].readyState !== 'live'    ) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                screen_error: 'Screen sharing is not enabled.'            }));
+        }
+
+        return;
+    }
+
+    const sourceWidth = visionVideo.videoWidth;
+    const sourceHeight = visionVideo.videoHeight;
+
+    if (!sourceWidth || !sourceHeight) {
+        ws.send(JSON.stringify({
+            screen_error: 'Screen image is not ready.'        }));
+        return;
+    }
+
+    // Don't send a giant native 4K/5K frame to the vision model.const maxWidth = 1600;
+    const scale = Math.min(1, maxWidth / sourceWidth);
+
+    const canvas = document.createElement('canvas');
+
+    canvas.width = Math.round(sourceWidth * scale);
+    canvas.height = Math.round(sourceHeight * scale);
+
+    const ctx = canvas.getContext('2d');
+
+    ctx.drawImage(
+        visionVideo,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
+    const base64Image = dataUrl.split(',')[1];
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            screen_image: base64Image        }));
+    }
 }
 
 // ---- Button wiring ----
